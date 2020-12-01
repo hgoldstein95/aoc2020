@@ -16,18 +16,10 @@ find2020Product :: Int -> [Int] -> Int
 find2020Product n = product . fromJust . find ((== 2020) . sum) . combinations n
 
 part1 :: IO ()
-part1 =
-  print
-    . find2020Product 2
-    . parseInput
-    =<< readInput
+part1 = print . find2020Product 2 . parseInput =<< readInput
 
 part2 :: IO ()
-part2 =
-  print
-    . find2020Product 3
-    . parseInput
-    =<< readInput
+part2 = print . find2020Product 3 . parseInput =<< readInput
 
 prop_regression :: Property
 prop_regression = ioProperty $ do
