@@ -1,0 +1,23 @@
+{-# LANGUAGE TemplateHaskell #-}
+
+module Day_DAY_ where
+
+import Test.QuickCheck (Property)
+import Test.QuickCheck.All (quickCheckAll)
+
+part1 :: IO ()
+part1 = undefined
+
+part2 :: IO ()
+part2 = undefined
+
+prop_regression :: Property
+prop_regression = undefined
+
+readInput :: IO String
+readInput = readFile "data/Day_DAY_.txt"
+
+return []
+
+runTests :: IO Bool
+runTests = $quickCheckAll

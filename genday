@@ -1,0 +1,6 @@
+#!/bin/bash
+
+DAY=$1
+
+cp Day.template src/Day$DAY.hs
+sed -i "s/_DAY_/$DAY/g" src/Day$DAY.hs
