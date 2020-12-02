@@ -13,6 +13,8 @@ part1 = undefined
 part2 :: IO ()
 part2 = undefined
 
+-- Input handling
+
 newtype Input = Input ()
   deriving (Eq, Arbitrary)
 

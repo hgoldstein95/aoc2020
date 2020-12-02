@@ -54,6 +54,8 @@ part1 = print . countValid valid1 =<< input
 part2 :: IO ()
 part2 = print . countValid valid2 =<< input
 
+-- Input handling
+
 newtype Database = Database {getDatabase :: [(Policy, Password)]}
   deriving (Eq, Arbitrary)
 
