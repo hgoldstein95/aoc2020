@@ -1,9 +1,11 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Day_DAY_ where
 
-import Test.QuickCheck (Property)
+import Test.QuickCheck (Arbitrary (..), Property, (===))
 import Test.QuickCheck.All (quickCheckAll)
+import Text.Parsec (parse)
 
 part1 :: IO ()
 part1 = undefined
@@ -11,11 +13,27 @@ part1 = undefined
 part2 :: IO ()
 part2 = undefined
 
+newtype Input = Input ()
+  deriving (Eq, Arbitrary)
+
+instance Show Input where
+  show = undefined
+
+instance Read Input where
+  readsPrec _ s = [(either (error . show) id . parse input "" $ s, "")]
+    where
+      input = undefined
+
+input :: IO Input
+input = read <$> readFile "data/Day_DAY_.txt"
+
+-- Testing
+
 prop_regression :: Property
 prop_regression = undefined
 
-readInput :: IO String
-readInput = readFile "data/Day_DAY_.txt"
+prop_roundTrip :: Input -> Property
+prop_roundTrip ps = ps === read (show ps)
 
 return []
 
