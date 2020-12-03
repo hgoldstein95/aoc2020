@@ -63,9 +63,9 @@ instance Show Database where
   show = unlines . map (\(p, s) -> show p ++ ": " ++ show s) . getDatabase
 
 instance Read Database where
-  readsPrec _ s = [(either (error . show) id . parse input "" $ s, "")]
+  readsPrec _ s = [(either (error . show) id . parse parseInput "" $ s, "")]
     where
-      input = Database <$> many line
+      parseInput = Database <$> many line
       line = (,) <$> policy <* string ": " <*> (Password <$> manyTill anyChar endOfLine)
       policy = Policy <$> freqs <* space <*> anyChar
       freqs = (,) <$> (int <* char '-') <*> int

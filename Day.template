@@ -22,9 +22,9 @@ instance Show Input where
   show = undefined
 
 instance Read Input where
-  readsPrec _ s = [(either (error . show) id . parse input "" $ s, "")]
+  readsPrec _ s = [(either (error . show) id . parse parseInput "" $ s, "")]
     where
-      input = undefined
+      parseInput = undefined
 
 input :: IO Input
 input = read <$> readFile "data/Day_DAY_.txt"
