@@ -8,7 +8,7 @@ import Test.QuickCheck.All (quickCheckAll)
 
 type Slope = (Int, Int)
 
-type Point = (Int, Int)
+type Square = (Int, Int)
 
 height :: Mountain -> Int
 height = length . getSquares
@@ -16,10 +16,10 @@ height = length . getSquares
 width :: Mountain -> Int
 width = length . head . getSquares
 
-index :: Point -> Mountain -> Square
+index :: Square -> Mountain -> Entity
 index (x, y) m = getSquares m !! y !! (x `mod` width m)
 
-walk :: Point -> Slope -> Mountain -> [Square]
+walk :: Square -> Slope -> Mountain -> [Entity]
 walk (_, y) _ m | y >= height m = []
 walk p@(x, y) s@(dx, dy) m = index p m : walk (x + dx, y + dy) s m
 
@@ -40,10 +40,10 @@ part2 = print . countAndMultiply slopes =<< input
 
 -- Input handling
 
-data Square = Tree | Empty
+data Entity = Tree | Empty
   deriving (Eq)
 
-newtype Mountain = Mountain {getSquares :: [[Square]]}
+newtype Mountain = Mountain {getSquares :: [[Entity]]}
   deriving (Eq)
 
 instance Show Mountain where
@@ -64,7 +64,7 @@ input = read <$> readFile "data/Day3.txt"
 
 -- Testing
 
-instance Arbitrary Square where
+instance Arbitrary Entity where
   arbitrary = elements [Tree, Empty]
 
 instance Arbitrary Mountain where
