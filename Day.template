@@ -7,6 +7,9 @@ import Test.QuickCheck (Arbitrary (..), Property, (===))
 import Test.QuickCheck.All (quickCheckAll)
 import Text.Parsec (parse)
 
+newtype Input = Input ()
+  deriving (Eq, Arbitrary)
+
 part1 :: IO ()
 part1 = undefined
 
@@ -15,11 +18,11 @@ part2 = undefined
 
 -- Input handling
 
-newtype Input = Input ()
-  deriving (Eq, Arbitrary)
+class Pretty a where
+  pretty :: a -> String
 
-instance Show Input where
-  show = undefined
+instance Pretty Input where
+  pretty = undefined
 
 instance Read Input where
   readsPrec _ s = [(either (error . show) id . parse parseInput "" $ s, "")]
@@ -35,7 +38,7 @@ prop_regression :: Property
 prop_regression = undefined
 
 prop_roundTrip :: Input -> Property
-prop_roundTrip ps = ps === read (show ps)
+prop_roundTrip ps = ps === read (pretty ps)
 
 return []
 

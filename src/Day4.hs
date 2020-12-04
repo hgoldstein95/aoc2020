@@ -4,14 +4,14 @@
 
 module Day4 where
 
-import Control.Monad (guard)
+import Control.Monad (guard, (<=<))
 import Data.Char (isSpace)
 import Data.Either (rights)
 import Data.Functor (($>))
 import Data.List (intercalate)
 import Data.List.Split (splitOn)
 import Data.Maybe (isJust)
-import Test.QuickCheck (Arbitrary (..), Property, elements, ioProperty, listOf1, property, (===))
+import Test.QuickCheck (Arbitrary (..), Gen, Property, elements, forAll, ioProperty, listOf1, property, shuffle, (===))
 import Test.QuickCheck.All (quickCheckAll)
 import Text.Parsec
   ( char,
@@ -159,8 +159,20 @@ prop_regression =
   ioProperty $
     (\b -> length (getBatch b) == 216 && length (getValid b) == 150) <$> input
 
+scramblePretty :: Passport -> Gen String
+scramblePretty = intersperse (elements [" ", "\n"]) <=< shuffle . words . pretty
+
+intersperse :: Gen String -> [String] -> Gen String
+intersperse _ [] = pure ""
+intersperse _ [x] = pure x
+intersperse g (x : xs) = (++) <$> ((x ++) <$> g) <*> intersperse g xs
+
 prop_roundTrip :: Batch -> Property
-prop_roundTrip ps = ps === read (pretty ps)
+prop_roundTrip b = b === read (pretty b)
+
+prop_passportRoundTrip :: Passport -> Property
+prop_passportRoundTrip p =
+  forAll (scramblePretty p) $ \s -> p == either (error . show) id (parse parsePassport "" s)
 
 testBatch :: Batch
 testBatch =
