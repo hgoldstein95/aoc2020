@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: beb6932a84a613ea4bb4f7babc60915dd515559435fe11ed2cf15795b9ab176c
+-- hash: 428120561c58408640110c80a5041ff18bab0d30d66c850dc3a27ad49a2bb0de
 
 name:           aoc2020
 version:        0.1.0.0
@@ -30,6 +30,7 @@ library
       Day1
       Day2
       Day3
+      Day4
   other-modules:
       Paths_aoc2020
   hs-source-dirs:
@@ -40,6 +41,8 @@ library
     , base >=4.7 && <5
     , containers
     , parsec
+    , regex-tdfa
+    , split
     , transformers
   default-language: Haskell2010
 
@@ -56,6 +59,8 @@ executable aoc2020-exe
     , base >=4.7 && <5
     , containers
     , parsec
+    , regex-tdfa
+    , split
     , transformers
   default-language: Haskell2010
 
@@ -73,5 +78,7 @@ test-suite aoc2020-test
     , base >=4.7 && <5
     , containers
     , parsec
+    , regex-tdfa
+    , split
     , transformers
   default-language: Haskell2010

@@ -25,6 +25,8 @@ dependencies:
   - transformers
   - QuickCheck
   - parsec
+  - split
+  - regex-tdfa
 
 library:
   source-dirs: src
