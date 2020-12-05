@@ -8,7 +8,7 @@ import Test.QuickCheck.All (quickCheckAll)
 import Text.Parsec (parse)
 
 newtype Input = Input ()
-  deriving (Eq, Arbitrary)
+  deriving (Eq, Show, Arbitrary)
 
 part1 :: IO ()
 part1 = undefined
