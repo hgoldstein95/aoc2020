@@ -19,7 +19,7 @@ seatID (Seat r c) = r * 8 + c
 -- For the record, I'm totally just trolling with `unfoldr`. The more reasonable way to write that
 -- is `(2 ^) <$> [0 :: Int ..]` or even just adding it to the zipWith function.
 fromBinary :: [Int] -> Int
-fromBinary = sum . zipWith (*) (unfoldr (Just . (id &&& (* 2))) (1 :: Int)) . reverse
+fromBinary = sum . zipWith (*) (unfoldr (pure . (id &&& (* 2))) (1 :: Int)) . reverse
 
 decodeChar :: Char -> Int
 decodeChar c = if c `elem` ['F', 'L'] then 0 else 1
