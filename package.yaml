@@ -27,6 +27,8 @@ dependencies:
   - parsec
   - split
   - regex-tdfa
+  - array
+  - lens
 
 library:
   source-dirs: src
