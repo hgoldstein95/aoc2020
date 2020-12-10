@@ -6,6 +6,7 @@
 module Day10 where
 
 import Control.Monad.Trans.State (evalState, get, modify)
+import Data.Functor (($>))
 import Data.List (sort)
 import qualified Data.Map as Map
 import Test.QuickCheck (Property, ioProperty, property)
@@ -30,11 +31,7 @@ examineChain =
 memoFix :: Ord a => (forall m. Monad m => (a -> m b) -> a -> m b) -> a -> b
 memoFix comp ipt = evalState (aux comp ipt) Map.empty
   where
-    aux c i = do
-      s <- get
-      case s Map.!? i of
-        Just r -> pure r
-        Nothing -> c (aux c) i >>= \k -> modify (Map.insert i k) >> pure k
+    aux c i = maybe (c (aux c) i >>= \k -> modify (Map.insert i k) $> k) pure . (Map.!? i) =<< get
 
 countArrangements :: Jolts -> Integer
 countArrangements = (`div` 2) . memoFix aux . (0,)
