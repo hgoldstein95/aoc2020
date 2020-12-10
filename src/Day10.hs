@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
@@ -6,8 +7,8 @@
 module Day10 where
 
 import Control.Monad.Trans.State (evalState, get, modify)
-import Data.Functor (($>))
 import Data.List (sort)
+import Data.Map ((!?))
 import qualified Data.Map as Map
 import Test.QuickCheck (Property, ioProperty, property)
 import Test.QuickCheck.All (quickCheckAll)
@@ -29,9 +30,13 @@ examineChain =
     . padChain
 
 memoFix :: Ord a => (forall m. Monad m => (a -> m b) -> a -> m b) -> a -> b
-memoFix comp ipt = evalState (aux comp ipt) Map.empty
+memoFix compute = (`evalState` Map.empty) . aux
   where
-    aux c i = maybe (c (aux c) i >>= \k -> modify (Map.insert i k) $> k) pure . (Map.!? i) =<< get
+    aux x = get >>= maybe (computeAndSave x) pure . (!? x)
+    computeAndSave x = do
+      k <- compute aux x
+      modify (Map.insert x k)
+      pure k
 
 countArrangements :: Jolts -> Integer
 countArrangements = (`div` 2) . memoFix aux . (0,)
