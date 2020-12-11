@@ -4,14 +4,22 @@
 module Day11 where
 
 import Control.Arrow (Arrow ((***)))
-import Data.Array (Array, Ix, array, bounds, elems, inRange, indices, (!))
+import Data.Array (Array, Ix, array, bounds, elems, inRange, indices, (!), (//))
 import Data.List (intercalate)
 import Data.Maybe (mapMaybe)
-import Test.QuickCheck (Arbitrary (..), Property, elements, getPositive, ioProperty, property, (===))
+import Test.QuickCheck
+  ( Arbitrary (..),
+    Property,
+    elements,
+    getPositive,
+    ioProperty,
+    property,
+    (===),
+  )
 import Test.QuickCheck.All (quickCheckAll)
 
-imap :: (Ix i) => (i -> a -> b) -> Array i a -> Array i b
-imap f a = array (bounds a) [(i, f i (a ! i)) | i <- indices a]
+imap :: (Ix i) => (i -> a -> a) -> Array i a -> Array i a
+imap f a = a // [(i, f i (a ! i)) | i <- indices a]
 
 deltas :: [(Int, Int) -> (Int, Int)]
 deltas = [(+ dx) *** (+ dy) | dx <- [-1, 0, 1], dy <- [-1, 0, 1], (dx, dy) /= (0, 0)]
@@ -70,10 +78,10 @@ visibleChairs pt a = mapMaybe (\d -> visibleChair d (d pt)) deltas
 step2 :: Layout -> Layout
 step2 (Layout spaces) = Layout $ imap stepSpace spaces
   where
-    occupiedNeighbors i = length (filter occupied (visibleChairs i spaces))
+    occupiedVisible i = length (filter occupied (visibleChairs i spaces))
     stepSpace _ Floor = Floor
-    stepSpace i Seat = if occupiedNeighbors i == 0 then Person else Seat
-    stepSpace i Person = if occupiedNeighbors i >= 5 then Seat else Person
+    stepSpace i Seat = if occupiedVisible i == 0 then Person else Seat
+    stepSpace i Person = if occupiedVisible i >= 5 then Seat else Person
 
 part1 :: IO ()
 part1 = print . occupiedAfterStable step1 =<< input
