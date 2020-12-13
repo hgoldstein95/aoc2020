@@ -29,6 +29,7 @@ dependencies:
   - regex-tdfa
   - array
   - lens
+  - arithmoi
 
 library:
   source-dirs: src
