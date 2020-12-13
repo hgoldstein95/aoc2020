@@ -18,21 +18,17 @@ import Test.QuickCheck
   )
 import Test.QuickCheck.All (quickCheckAll)
 
+type Point = (Int, Int)
+
 imap :: (Ix i) => (i -> a -> a) -> Array i a -> Array i a
 imap f a = a // [(i, f i (a ! i)) | i <- indices a]
 
-deltas :: [(Int, Int) -> (Int, Int)]
-deltas = [(+ dx) *** (+ dy) | dx <- [-1, 0, 1], dy <- [-1, 0, 1], (dx, dy) /= (0, 0)]
-
-neighbors :: (Int, Int) -> Array (Int, Int) a -> [a]
-neighbors p a = mapMaybe ((a !?) . ($ p)) deltas
-
-arrayToList :: Array (Int, Int) a -> [[a]]
+arrayToList :: Array Point a -> [[a]]
 arrayToList a =
   let (_, (mx, my)) = bounds a
    in [[a ! (x, y) | x <- [0 .. mx]] | y <- [0 .. my]]
 
-listToArray :: [[a]] -> Array (Int, Int) a
+listToArray :: [[a]] -> Array Point a
 listToArray xs =
   let mx = length (head xs) - 1
       my = length xs - 1
@@ -41,16 +37,19 @@ listToArray xs =
 (!?) :: (Ix i) => Array i a -> i -> Maybe a
 a !? i = if inRange (bounds a) i then Just (a ! i) else Nothing
 
+data Space = Floor | Seat | Person
+  deriving (Eq, Show)
+
+newtype Layout = Layout {getSpaces :: Array Point Space}
+  deriving (Eq, Show)
+
 fp :: Eq a => (a -> a) -> a -> a
 fp f x =
   let x' = f x
    in if x == x' then x' else fp f x'
 
-data Space = Floor | Seat | Person
-  deriving (Eq, Show)
-
-newtype Layout = Layout {getSpaces :: Array (Int, Int) Space}
-  deriving (Eq, Show)
+deltas :: [Point -> Point]
+deltas = [(+ dx) *** (+ dy) | dx <- [-1, 0, 1], dy <- [-1, 0, 1], (dx, dy) /= (0, 0)]
 
 occupied :: Space -> Bool
 occupied Person = True
@@ -59,16 +58,19 @@ occupied _ = False
 occupiedAfterStable :: (Layout -> Layout) -> Layout -> Int
 occupiedAfterStable s = length . filter occupied . elems . getSpaces . fp s
 
+neighbors :: Point -> Layout -> [Space]
+neighbors p (Layout a) = mapMaybe ((a !?) . ($ p)) deltas
+
 step1 :: Layout -> Layout
-step1 (Layout spaces) = Layout $ imap stepSpace spaces
+step1 l@(Layout spaces) = Layout $ imap stepSpace spaces
   where
-    occupiedNeighbors i = length (filter occupied (neighbors i spaces))
+    occupiedNeighbors i = length (filter occupied (neighbors i l))
     stepSpace _ Floor = Floor
     stepSpace i Seat = if occupiedNeighbors i == 0 then Person else Seat
     stepSpace i Person = if occupiedNeighbors i >= 4 then Seat else Person
 
-visibleChairs :: (Int, Int) -> Array (Int, Int) Space -> [Space]
-visibleChairs pt a = mapMaybe (\d -> visibleChair d (d pt)) deltas
+visibleChairs :: Point -> Layout -> [Space]
+visibleChairs pt (Layout a) = mapMaybe (\d -> visibleChair d (d pt)) deltas
   where
     visibleChair f p
       | not (inRange (bounds a) p) = Nothing
@@ -76,9 +78,9 @@ visibleChairs pt a = mapMaybe (\d -> visibleChair d (d pt)) deltas
       | otherwise = visibleChair f (f p)
 
 step2 :: Layout -> Layout
-step2 (Layout spaces) = Layout $ imap stepSpace spaces
+step2 l@(Layout spaces) = Layout $ imap stepSpace spaces
   where
-    occupiedVisible i = length (filter occupied (visibleChairs i spaces))
+    occupiedVisible i = length (filter occupied (visibleChairs i l))
     stepSpace _ Floor = Floor
     stepSpace i Seat = if occupiedVisible i == 0 then Person else Seat
     stepSpace i Person = if occupiedVisible i >= 5 then Seat else Person
