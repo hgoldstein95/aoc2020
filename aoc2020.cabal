@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f4089929346c93e20d8d0877faf99b12074d58115023aac52d01843f4b4a44e8
+-- hash: 9f720c54680b0a9c4bc82d88d17e377adff2c0fc7332689a1482c4e864c98dac
 
 name:           aoc2020
 version:        0.1.0.0
@@ -58,6 +58,7 @@ library
     , regex-tdfa
     , split
     , transformers
+    , vector
   default-language: Haskell2010
 
 executable aoc2020-exe
@@ -79,6 +80,7 @@ executable aoc2020-exe
     , regex-tdfa
     , split
     , transformers
+    , vector
   default-language: Haskell2010
 
 test-suite aoc2020-test
@@ -101,4 +103,5 @@ test-suite aoc2020-test
     , regex-tdfa
     , split
     , transformers
+    , vector
   default-language: Haskell2010

@@ -4,11 +4,14 @@
 module Day11 where
 
 import Control.Arrow (Arrow ((***)))
-import Data.Array (Array, Ix, array, bounds, elems, inRange, indices, (!), (//))
-import Data.List (intercalate)
+import Control.Monad (replicateM)
+import Data.List (intercalate, sort)
 import Data.Maybe (mapMaybe)
+import Data.Vector (Vector)
+import qualified Data.Vector as Vector
 import Test.QuickCheck
   ( Arbitrary (..),
+    Positive (..),
     Property,
     elements,
     getPositive,
@@ -20,28 +23,44 @@ import Test.QuickCheck.All (quickCheckAll)
 
 type Point = (Int, Int)
 
-imap :: (Ix i) => (i -> a -> a) -> Array i a -> Array i a
-imap f a = a // [(i, f i (a ! i)) | i <- indices a]
-
-arrayToList :: Array Point a -> [[a]]
-arrayToList a =
-  let (_, (mx, my)) = bounds a
-   in [[a ! (x, y) | x <- [0 .. mx]] | y <- [0 .. my]]
-
-listToArray :: [[a]] -> Array Point a
-listToArray xs =
-  let mx = length (head xs) - 1
-      my = length xs - 1
-   in array ((0, 0), (mx, my)) [((x, y), xs !! y !! x) | x <- [0 .. mx], y <- [0 .. my]]
-
-(!?) :: (Ix i) => Array i a -> i -> Maybe a
-a !? i = if inRange (bounds a) i then Just (a ! i) else Nothing
-
 data Space = Floor | Seat | Person
   deriving (Eq, Show)
 
-newtype Layout = Layout {getSpaces :: Array Point Space}
+data Layout = Layout {getSpaces :: !(Vector Space), upperBound :: !Point}
   deriving (Eq, Show)
+
+imap :: (Point -> Space -> Space) -> Layout -> Layout
+imap f (Layout v m) = Layout (Vector.imap (f . indexToPoint m) v) m
+
+pointToIndex :: Point -> Point -> Int
+pointToIndex (mx, _) (x, y) = y * (mx + 1) + x
+
+indexToPoint :: Point -> Int -> Point
+indexToPoint (mx, _) i = (i `mod` (mx + 1), i `div` (mx + 1))
+
+layoutToList :: Layout -> [[Space]]
+layoutToList l@(Layout _ (mx, my)) =
+  [[l ! (x, y) | x <- [0 .. mx]] | y <- [0 .. my]]
+
+listToLayout :: [[Space]] -> Layout
+listToLayout xs =
+  let mx = length (head xs) - 1
+      my = length xs - 1
+   in Layout (Vector.fromList . concat $ xs) (mx, my)
+
+(!) :: Layout -> Point -> Space
+(!) (Layout v m) p = v Vector.! pointToIndex m p
+
+(!?) :: Layout -> Point -> Maybe Space
+l !? p = if not (inBounds l p) then Nothing else Just (l ! p)
+
+inBounds :: Layout -> Point -> Bool
+inBounds (Layout _ (mx, my)) (px, py) = 0 <= px && px <= mx && 0 <= py && py <= my
+
+spaces :: Layout -> [Space]
+spaces = Vector.toList . getSpaces
+
+-- Main Code
 
 fp :: Eq a => (a -> a) -> a -> a
 fp f x =
@@ -56,13 +75,13 @@ occupied Person = True
 occupied _ = False
 
 occupiedAfterStable :: (Layout -> Layout) -> Layout -> Int
-occupiedAfterStable s = length . filter occupied . elems . getSpaces . fp s
+occupiedAfterStable s = length . filter occupied . spaces . fp s
 
 neighbors :: Point -> Layout -> [Space]
-neighbors p (Layout a) = mapMaybe ((a !?) . ($ p)) deltas
+neighbors p a = mapMaybe ((a !?) . ($ p)) deltas
 
 step1 :: Layout -> Layout
-step1 l@(Layout spaces) = Layout $ imap stepSpace spaces
+step1 l = imap stepSpace l
   where
     occupiedNeighbors i = length (filter occupied (neighbors i l))
     stepSpace _ Floor = Floor
@@ -70,15 +89,15 @@ step1 l@(Layout spaces) = Layout $ imap stepSpace spaces
     stepSpace i Person = if occupiedNeighbors i >= 4 then Seat else Person
 
 visibleChairs :: Point -> Layout -> [Space]
-visibleChairs pt (Layout a) = mapMaybe (\d -> visibleChair d (d pt)) deltas
+visibleChairs pt l = mapMaybe (\d -> visibleChair d (d pt)) deltas
   where
     visibleChair f p
-      | not (inRange (bounds a) p) = Nothing
-      | a ! p /= Floor = Just (a ! p)
+      | not (inBounds l p) = Nothing
+      | l ! p /= Floor = Just (l ! p)
       | otherwise = visibleChair f (f p)
 
 step2 :: Layout -> Layout
-step2 l@(Layout spaces) = Layout $ imap stepSpace spaces
+step2 l = imap stepSpace l
   where
     occupiedVisible i = length (filter occupied (visibleChairs i l))
     stepSpace _ Floor = Floor
@@ -97,18 +116,14 @@ class Pretty a where
   pretty :: a -> String
 
 instance Pretty Layout where
-  pretty (Layout spaces) =
-    intercalate "\n"
-      . map (map spaceChar)
-      . arrayToList
-      $ spaces
+  pretty = intercalate "\n" . map (map spaceChar) . layoutToList
     where
       spaceChar Floor = '.'
       spaceChar Seat = 'L'
       spaceChar Person = '#'
 
 instance Read Layout where
-  readsPrec _ = (\x -> [(x, "")]) . Layout . listToArray . map (map charSpace) . lines
+  readsPrec _ = (\x -> [(x, "")]) . listToLayout . map (map charSpace) . lines
     where
       charSpace '.' = Floor
       charSpace 'L' = Seat
@@ -129,10 +144,7 @@ iterateM m = (:) <$> m <*> iterateM m
 instance Arbitrary Layout where
   arbitrary = do
     n <- getPositive <$> arbitrary
-    Layout
-      . array ((0, 0), (n, n))
-      . zip [(a, b) | a <- [0 .. n], b <- [0 .. n]]
-      <$> iterateM arbitrary
+    listToLayout <$> replicateM n (replicateM n arbitrary)
 
 prop_regression :: Property
 prop_regression =
@@ -164,6 +176,17 @@ prop_occupiedAfterStableUnit :: Property
 prop_occupiedAfterStableUnit =
   property $
     occupiedAfterStable step1 testLayout == 37 && occupiedAfterStable step2 testLayout == 26
+
+prop_indexPointRT ::
+  Positive Int ->
+  Positive Int ->
+  Positive Int ->
+  Positive Int ->
+  Property
+prop_indexPointRT (Positive a) (Positive b) (Positive c) (Positive d) =
+  let [x, mx] = sort [a, b]
+      [y, my] = sort [c, d]
+   in (indexToPoint (mx, my) . pointToIndex (mx, my)) (x, y) === (x, y)
 
 return []
 
