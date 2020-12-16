@@ -5,7 +5,7 @@ module Day11 where
 
 import Control.Arrow (Arrow ((***)))
 import Control.Monad (replicateM)
-import Data.List (intercalate, sort)
+import Data.List (intercalate, sort, unfoldr)
 import Data.Maybe (mapMaybe)
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
@@ -39,8 +39,7 @@ indexToPoint :: Point -> Int -> Point
 indexToPoint (mx, _) i = (i `mod` (mx + 1), i `div` (mx + 1))
 
 layoutToList :: Layout -> [[Space]]
-layoutToList l@(Layout _ (mx, my)) =
-  [[l ! (x, y) | x <- [0 .. mx]] | y <- [0 .. my]]
+layoutToList l@(Layout _ (mx, my)) = [[l ! (x, y) | x <- [0 .. mx]] | y <- [0 .. my]]
 
 listToLayout :: [[Space]] -> Layout
 listToLayout xs =
@@ -62,10 +61,8 @@ spaces = Vector.toList . getSpaces
 
 -- Main Code
 
-fp :: Eq a => (a -> a) -> a -> a
-fp f x =
-  let x' = f x
-   in if x == x' then x' else fp f x'
+count :: (a -> Bool) -> [a] -> Int
+count f = length . filter f
 
 deltas :: [Point -> Point]
 deltas = [(+ dx) *** (+ dy) | dx <- [-1, 0, 1], dy <- [-1, 0, 1], (dx, dy) /= (0, 0)]
@@ -74,16 +71,13 @@ occupied :: Space -> Bool
 occupied Person = True
 occupied _ = False
 
-occupiedAfterStable :: (Layout -> Layout) -> Layout -> Int
-occupiedAfterStable s = length . filter occupied . spaces . fp s
-
 neighbors :: Point -> Layout -> [Space]
 neighbors p a = mapMaybe ((a !?) . ($ p)) deltas
 
 step1 :: Layout -> Layout
 step1 l = imap stepSpace l
   where
-    occupiedNeighbors i = length (filter occupied (neighbors i l))
+    occupiedNeighbors i = count occupied (neighbors i l)
     stepSpace _ Floor = Floor
     stepSpace i Seat = if occupiedNeighbors i == 0 then Person else Seat
     stepSpace i Person = if occupiedNeighbors i >= 4 then Seat else Person
@@ -99,10 +93,16 @@ visibleChairs pt l = mapMaybe (\d -> visibleChair d (d pt)) deltas
 step2 :: Layout -> Layout
 step2 l = imap stepSpace l
   where
-    occupiedVisible i = length (filter occupied (visibleChairs i l))
+    occupiedVisible i = count occupied (visibleChairs i l)
     stepSpace _ Floor = Floor
     stepSpace i Seat = if occupiedVisible i == 0 then Person else Seat
     stepSpace i Person = if occupiedVisible i >= 5 then Seat else Person
+
+fixpoint :: Eq a => (a -> a) -> a -> a
+fixpoint f = last . unfoldr (\x -> let x' = f x in if x == x' then Nothing else Just (x', x'))
+
+occupiedAfterStable :: (Layout -> Layout) -> Layout -> Int
+occupiedAfterStable s = length . filter occupied . spaces . fixpoint s
 
 part1 :: IO ()
 part1 = print . occupiedAfterStable step1 =<< input
