@@ -8,22 +8,11 @@ import Data.Functor (($>))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as Map
 import Data.List.Split (splitOn)
+import Data.Maybe (fromJust, isJust)
 import Test.QuickCheck (Property, ioProperty)
 import Test.QuickCheck.All (quickCheckAll)
-import Text.Parsec
-  ( anyChar,
-    char,
-    digit,
-    many1,
-    parse,
-    sepEndBy1,
-    space,
-    string,
-    try,
-    (<|>),
-  )
-import Text.ParserCombinators.ReadP (ReadP, (+++))
-import qualified Text.ParserCombinators.ReadP as R
+import Text.Parser (Parser, parse, (+++), (<++))
+import qualified Text.Parser as P
 
 type Idx = Int
 
@@ -32,30 +21,30 @@ type Rules = IntMap Rule
 data Rule = Lit Char | Concat [Idx] | Disj [Idx] [Idx]
   deriving (Eq, Show)
 
-compile1 :: Rules -> ReadP ()
-compile1 m = aux 0 >> R.eof
+compile1 :: Rules -> Parser ()
+compile1 m = aux 0 >> P.eof
   where
     aux n = case m Map.! n of
-      Lit c -> R.char c $> ()
+      Lit c -> P.char c $> ()
       Concat xs -> con xs
       Disj xs ys -> con xs +++ con ys
     con = foldr ((>>) . aux) (pure ())
 
-compile2 :: Rules -> ReadP ()
-compile2 m = aux 0 >> R.eof
+compile2 :: Rules -> Parser ()
+compile2 m = aux 0 >> P.eof
   where
     aux n = case m Map.! n of
-      Lit c -> R.char c $> ()
-      Concat [x] | n == 8 -> R.many1 (aux x) $> ()
+      Lit c -> P.char c $> ()
+      Concat [x] | n == 8 -> P.many1 (aux x) $> ()
       Concat [x, y] | n == 11 -> do
-        l <- length <$> R.many1 (aux x)
-        R.count l (aux y) $> ()
+        l <- length <$> P.many1 (aux x)
+        P.count l (aux y) $> ()
       Concat xs -> con xs
       Disj xs ys -> con xs +++ con ys
     con = foldr ((>>) . aux) (pure ())
 
-match :: ReadP () -> String -> Bool
-match p = not . null . R.readP_to_S p
+match :: Parser () -> String -> Bool
+match p = isJust . parse p
 
 part1 :: IO ()
 part1 = do
@@ -75,15 +64,14 @@ readRules :: [String] -> Rules
 readRules = Map.fromList . map readRule
 
 readRule :: String -> (Idx, Rule)
-readRule = either (error . show) id . parse indexedRule ""
+readRule = fromJust . parse (indexedRule <* P.eof)
   where
-    indexedRule = (,) <$> idx <*> (string ": " *> rule)
-    rule = lit <|> try disj <|> cat
-    disj = Disj <$> idxs <*> (string "| " *> idxs)
-    lit = Lit <$> (char '"' *> anyChar <* char '"')
+    indexedRule = (,) <$> P.nat <* P.string ": " <*> rule
+    rule = disj <++ cat <++ lit
+    disj = Disj <$> idxs <* P.string " | " <*> idxs
+    lit = Lit <$> P.between (P.char '"') (P.char '"') P.any
     cat = Concat <$> idxs
-    idxs = idx `sepEndBy1` space
-    idx = read <$> many1 digit
+    idxs = P.nat `P.sepBy1` P.char ' '
 
 input :: IO (Rules, [String])
 input = do
