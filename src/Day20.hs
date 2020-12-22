@@ -1,6 +1,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Day20 where
 
@@ -9,7 +11,7 @@ import Control.Monad (msum)
 import Data.List (foldl1', groupBy, intercalate, sortOn, transpose)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (fromJust, maybeToList)
+import Data.Maybe (fromJust)
 import Test.QuickCheck (Property, ioProperty, property)
 import Test.QuickCheck.All (quickCheckAll)
 import Text.Parser (parse, (+++))
@@ -45,9 +47,9 @@ orientations p =
     (rotate . rotate) p,
     (rotate . rotate . rotate) p,
     flip p,
-    (rotate . flip) p,
-    (rotate . rotate . flip) p,
-    (rotate . rotate . rotate . flip) p
+    (flip . rotate) p,
+    (flip . rotate . rotate) p,
+    (flip . rotate . rotate . rotate) p
   ]
 
 type Pos = (Int, Int)
@@ -56,15 +58,15 @@ data Match = N | E | S | W deriving (Eq)
 
 match :: Grid -> Grid -> Maybe Match
 match a b
-  | east a == west b = Just E
   | west a == east b = Just W
+  | east a == west b = Just E
   | north a == south b = Just N
   | south a == north b = Just S
   | otherwise = Nothing
 
 dir :: Match -> Pos -> Pos
-dir E = first (+ 1)
 dir W = first (+ (-1))
+dir E = first (+ 1)
 dir N = second (+ 1)
 dir S = second (+ (-1))
 
@@ -75,17 +77,25 @@ type Puzzle = Map Pos Tile
 
 puzzle :: [Tile] -> Puzzle
 puzzle [] = Map.empty
-puzzle (a : as) = head $ aux (Map.singleton (0, 0) a) as
+puzzle (a : as) = fromJust $ aux (Map.singleton (0, 0) a) as
   where
     attach (pos, t1) t2 =
       ((`dir` pos) *** Tile (tileId t2)) <$> matchAny (pixels t1) (pixels t2)
 
     aux m [] = pure m
     aux m ts = do
-      pt <- Map.assocs m
-      t <- ts
-      (p', t') <- maybeToList (attach pt t)
-      aux (Map.insert p' t' m) . filter ((/= tileId t') . tileId) $ ts
+      (p, t) <- msum $ attach <$> Map.assocs m <*> ts
+      aux (Map.insert p t m) . filter ((/= tileId t) . tileId) $ ts
+
+valid :: Pos -> Tile -> Puzzle -> Bool
+valid p t m =
+  all
+    ( \d ->
+        case m Map.!? dir d p of
+          Nothing -> True
+          Just t' -> match (pixels t) (pixels t') == Just d
+    )
+    [N, E, S, W]
 
 corners :: Puzzle -> [Tile]
 corners m =
@@ -95,7 +105,7 @@ corners m =
   ]
 
 crop :: Tile -> Tile
-crop (Tile pid cs) = Tile pid $ (transpose . init . tail . transpose . init) cs
+crop (Tile pid cs) = Tile pid $ (transpose . init . tail . transpose . init . tail) cs
 
 stitch :: Map Pos Tile -> Grid
 stitch =
@@ -107,6 +117,48 @@ stitch =
     . map (second crop)
     . Map.assocs
 
+gridToMap :: Grid -> Map Pos Char
+gridToMap grid =
+  Map.fromList
+    [ ((row, col), value)
+      | (row, content) <- zip [0 ..] grid,
+        (col, value) <- zip [0 ..] content
+    ]
+
+findMonstersInGrid :: Grid -> [Pos]
+findMonstersInGrid =
+  msum
+    . map
+      ( (\m -> filter (`isMonster` m) (Map.keys m))
+          . gridToMap
+      )
+    . orientations
+
+isMonster :: Pos -> Map Pos Char -> Bool
+isMonster (x, y) m =
+  let possibleSpots =
+        [ (x + 18, y),
+          (x, y + 1),
+          (x + 5, y + 1),
+          (x + 6, y + 1),
+          (x + 11, y + 1),
+          (x + 12, y + 1),
+          (x + 17, y + 1),
+          (x + 18, y + 1),
+          (x + 19, y + 1),
+          (x + 1, y + 2),
+          (x + 4, y + 2),
+          (x + 7, y + 2),
+          (x + 10, y + 2),
+          (x + 13, y + 2),
+          (x + 16, y + 2)
+        ]
+   in all ((== Just '#') . (m Map.!?)) possibleSpots
+
+checkWaters :: Puzzle -> Int
+checkWaters (stitch -> g) =
+  (length . filter (== '#') . concat) g - ((* 15) . length . findMonstersInGrid) g
+
 showGrid :: Grid -> String
 showGrid = intercalate "\n"
 
@@ -114,7 +166,7 @@ part1 :: IO ()
 part1 = print . product . map tileId . corners . puzzle =<< input
 
 part2 :: IO ()
-part2 = undefined
+part2 = print . checkWaters . puzzle =<< input
 
 -- Input handling
 
@@ -138,6 +190,7 @@ prop_regression =
     ( \ts ->
         let p = puzzle ts
          in (product . map tileId . corners) p == 32287787075651
+              && checkWaters p == 1939
     )
       <$> input
 
@@ -255,6 +308,45 @@ testTiles =
 prop_cornersUnit :: Property
 prop_cornersUnit =
   property $ (product . map tileId . corners . puzzle) testTiles == 20899048083289
+
+prop_stitchUnit :: Property
+prop_stitchUnit =
+  property $
+    elem g
+      . orientations
+      . stitch
+      . puzzle
+      $ testTiles
+  where
+    g =
+      [ ".#.#..#.##...#.##..#####",
+        "###....#.#....#..#......",
+        "##.##.###.#.#..######...",
+        "###.#####...#.#####.#..#",
+        "##.#....#.##.####...#.##",
+        "...########.#....#####.#",
+        "....#..#...##..#.#.###..",
+        ".####...#..#.....#......",
+        "#..#.##..#..###.#.##....",
+        "#.####..#.####.#.#.###..",
+        "###.#.#...#.######.#..##",
+        "#.####....##..########.#",
+        "##..##.#...#...#.#.#.#..",
+        "...#..#..#.#.##..###.###",
+        ".#.#....#.##.#...###.##.",
+        "###.#...#..#.##.######..",
+        ".#.#.###.##.##.#..#.##..",
+        ".####.###.#...###.#..#.#",
+        "..#.#..#..#.#.#.####.###",
+        "#..####...#.#.#.###.###.",
+        "#####..#####...###....##",
+        "#.##..#..#...#..####...#",
+        ".#.###..##..##..####.##.",
+        "...###...##...#...#..###"
+      ]
+
+prop_checkWatersUnit :: Property
+prop_checkWatersUnit = property $ (checkWaters . puzzle) testTiles == 273
 
 return []
 
