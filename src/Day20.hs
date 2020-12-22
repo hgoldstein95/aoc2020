@@ -117,26 +117,26 @@ stitch =
     . map (second crop)
     . Map.assocs
 
-gridToMap :: Grid -> Map Pos Char
-gridToMap grid =
-  Map.fromList
-    [ ((row, col), value)
-      | (row, content) <- zip [0 ..] grid,
-        (col, value) <- zip [0 ..] content
-    ]
-
-findMonstersInGrid :: Grid -> [Pos]
-findMonstersInGrid =
-  msum
+countMonsters :: Grid -> Int
+countMonsters =
+  length
+    . msum
     . map
       ( (\m -> filter (`isMonster` m) (Map.keys m))
-          . gridToMap
+          . withPositions
       )
     . orientations
+  where
+    withPositions grid =
+      Map.fromList
+        [ ((row, col), value)
+          | (row, content) <- zip [0 :: Int ..] grid,
+            (col, value) <- zip [0 :: Int ..] content
+        ]
 
-isMonster :: Pos -> Map Pos Char -> Bool
-isMonster (x, y) m =
-  let possibleSpots =
+    isMonster (x, y) m =
+      all
+        ((== Just '#') . (m Map.!?))
         [ (x + 18, y),
           (x, y + 1),
           (x + 5, y + 1),
@@ -153,11 +153,10 @@ isMonster (x, y) m =
           (x + 13, y + 2),
           (x + 16, y + 2)
         ]
-   in all ((== Just '#') . (m Map.!?)) possibleSpots
 
 checkWaters :: Puzzle -> Int
 checkWaters (stitch -> g) =
-  (length . filter (== '#') . concat) g - ((* 15) . length . findMonstersInGrid) g
+  (length . filter (== '#') . concat) g - ((* 15) . countMonsters) g
 
 showGrid :: Grid -> String
 showGrid = intercalate "\n"
