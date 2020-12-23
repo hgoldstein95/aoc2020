@@ -4,10 +4,8 @@
 
 module Day22 where
 
-import Control.Monad.Trans.State.Strict (evalState, get, modify)
 import Data.Either (isLeft)
 import Data.Foldable (Foldable (toList))
-import qualified Data.Map.Strict as Map
 import Data.Maybe (fromJust)
 import Data.Sequence (Seq (..), (|>))
 import qualified Data.Sequence as Seq
@@ -28,29 +26,19 @@ combat (c1 :<| cs1, c2 :<| cs2)
   | c1 > c2 = combat (cs2, cs1 |> c1 |> c2)
   | otherwise = combat (cs2 |> c2 |> c1, cs1)
 
-memoFix :: Ord a => (forall m. Monad m => (a -> m b) -> a -> m b) -> a -> b
-memoFix compute = (`evalState` Map.empty) . aux
-  where
-    aux x = get >>= maybe (computeAndSave x) pure . (Map.!? x)
-    computeAndSave x = do
-      k <- compute aux x
-      modify (Map.insert x k)
-      pure k
-
 recCombat :: (Deck, Deck) -> Either Deck Deck
-recCombat = memoFix (`aux` Set.empty)
+recCombat = aux Set.empty
   where
-    aux _ prev ds@(d1, _)
-      | ds `Set.member` prev = pure (Left d1)
-    aux _ _ (d1, Empty) = pure (Left d1)
-    aux _ _ (Empty, d2) = pure (Right d2)
-    aux f prev ds@(c1 :<| cs1, c2 :<| cs2) =
-      aux f (Set.insert ds prev) =<< do
-        p1Wins <-
-          if c1 <= length cs1 && c2 <= length cs2
-            then isLeft <$> f (Seq.take c1 cs1, Seq.take c2 cs2)
-            else pure (c1 > c2)
-        pure $ if p1Wins then (cs1 |> c1 |> c2, cs2) else (cs1, cs2 |> c2 |> c1)
+    aux prev ds@(d1, _) | ds `Set.member` prev = Left d1
+    aux _ (d1, Empty) = Left d1
+    aux _ (Empty, d2) = Right d2
+    aux prev ds@(c1 :<| cs1, c2 :<| cs2) =
+      aux (Set.insert ds prev) $
+        let p1Wins =
+              if c1 <= length cs1 && c2 <= length cs2
+                then isLeft (recCombat (Seq.take c1 cs1, Seq.take c2 cs2))
+                else c1 > c2
+         in if p1Wins then (cs1 |> c1 |> c2, cs2) else (cs1, cs2 |> c2 |> c1)
 
 score :: Either Deck Deck -> Int
 score = sum . zipWith (*) [1 ..] . toList . Seq.reverse . either id id
